@@ -1,0 +1,23 @@
+services:
+  web:
+    build:
+      args:
+        - config=production
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - staticfiles:/opt/app/staticfiles
+    expose:
+      - 8000
+
+  nginx:
+    build: ./nginx
+    container_name: nginx_container
+    volumes:
+      - staticfiles:/opt/app/staticfiles
+    ports:
+      - 80:80
+    depends_on:
+      - web
+
+volumes:
+    staticfiles:
