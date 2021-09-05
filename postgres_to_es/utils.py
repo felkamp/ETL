@@ -7,12 +7,12 @@ from loggers import logger
 
 
 def expo(base: float, factor: int, max_value: float):
-    n = 0
+    count = 0
     while True:
-        t = factor * base ** n
-        if t < max_value:
-            yield t
-            n += 1
+        res = factor * base ** count
+        if res < max_value:
+            yield res
+            count += 1
         else:
             yield max_value
 
@@ -29,7 +29,7 @@ def backoff(exp, start_sleep_time=2, factor=2, border_sleep_time=10):
                 except exp:
                     time.sleep(delay)
                     delay = next(exp_gen)
-                    logger.debug(
+                    logger.error(
                         f"Не удалось выполнить подключение, повтор через {delay}s"
                     )
 

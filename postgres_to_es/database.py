@@ -1,24 +1,8 @@
 import psycopg2
-from psycopg2 import InterfaceError, OperationalError
+from psycopg2 import OperationalError
 from psycopg2.extras import DictCursor
 
 from utils import backoff
-
-
-class Cursor:
-    def __init__(self, connect):
-        self.cursor = connect.cursor(cursor_factory=DictCursor)
-        self._connection = connect
-
-    @backoff((OperationalError, InterfaceError))
-    def execute(self, *args, **kwargs):
-        self.cursor.execute(*args, **kwargs)
-
-    def fetchone(self, *args, **kwargs):
-        return self.cursor.fetchone(*args, **kwargs)
-
-    def close(self, *args, **kwargs):
-        return self.cursor.close(*args, **kwargs)
 
 
 class Database:
@@ -29,7 +13,7 @@ class Database:
         self.host = host
         self.port = int(port)
         self.connect = self.connect()
-        self.cursor = Cursor(self.connect)
+        self.cursor = self.connect.cursor(cursor_factory=DictCursor)
 
     @backoff(OperationalError)
     def connect(self):
@@ -40,9 +24,6 @@ class Database:
             host=self.host,
             port=self.port,
         )
-
-    def _get_cursor(self):
-        return self.connect.cursor()
 
     def close(self, commit=True):
         if commit:

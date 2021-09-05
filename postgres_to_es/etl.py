@@ -1,10 +1,13 @@
 import json
 import os
 import pickle
+import sched
+import time
 
 import redis
 import requests
 from dotenv import load_dotenv
+from psycopg2 import InterfaceError, OperationalError
 from requests.exceptions import ConnectionError
 
 from database import Database
@@ -14,6 +17,8 @@ from sql_queries import get_movies_query
 from utils import backoff, coroutine, get_update_time
 
 load_dotenv(".env")
+schedule = sched.scheduler(time.time, time.sleep)
+TIME_REPEAT = int(os.environ.get("TIME_REPEAT")) or 60
 
 
 class ESLoader:
@@ -26,12 +31,12 @@ class ESLoader:
     def bulk(self, data):
         url = self.url + "/_bulk"
         headers = {"Content-type": "application/json"}
-        logger.debug("Отправка данных в elastic search")
+        logger.info("Отправка данных в elastic search")
         res = requests.post(url, data=data.encode("utf-8"), headers=headers).json()
         if res.get("errors"):
-            logger.debug("При отправке возникли ошибки")
+            logger.error("При отправке возникли ошибки")
         else:
-            logger.debug("Данные загружены")
+            logger.info("Данные загружены")
 
     def load_to_es(self, film_works, update_redis_data=True):
         if update_redis_data:
@@ -65,15 +70,16 @@ class ETL:
         self.postgres_limit = postgres_limit
         self.es_chunk_size = es_chunk_size
 
+    @backoff((OperationalError, InterfaceError))
     def extract(self, target):
         cur = self.db.cursor
-        logger.debug("Извлечение данных из базы")
+        logger.info("Извлечение данных из базы")
         cur.execute(
             get_movies_query(),
             (get_update_time(self.redis_client), self.postgres_limit),
         )
-        logger.debug("Обработка данных")
-        while row := cur.fetchone():
+        logger.info("Обработка данных")
+        for row in cur:
             target.send(row)
 
     @coroutine
@@ -98,7 +104,7 @@ class ETL:
         self.extract(transform)
 
 
-def main():
+def main(sc=None):
     redis_client = redis.Redis(host=os.environ.get("REDIS_HOST", "127.0.0.1"))
     es_loader = ESLoader(
         url=os.environ.get("ES_LOADER_URL", "http://127.0.0.1:9200"),
@@ -112,13 +118,17 @@ def main():
         host=os.environ.get("DB_HOST"),
         port=os.environ.get("DB_PORT"),
     )
-    etl = ETL(db, es_loader, redis_client)
-    if data := redis_client.get("data"):
-        logger.debug("Найдены не загруженные данные, начинаю загрузку")
-        es_loader.load_to_es(pickle.loads(data), update_redis_data=False)
-    etl()
-    db.close()
+    try:
+        etl = ETL(db, es_loader, redis_client)
+        if data := redis_client.get("data"):
+            logger.info("Найдены не загруженные данные, начинаю загрузку")
+            es_loader.load_to_es(pickle.loads(data), update_redis_data=False)
+        etl()
+    finally:
+        db.close()
+        schedule.enter(TIME_REPEAT, 1, main, (sc,))
 
 
 if __name__ == "__main__":
-    main()
+    schedule.enter(0, 1, main, (schedule,))
+    schedule.run()
