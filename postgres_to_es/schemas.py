@@ -23,16 +23,16 @@ class FilmWork(BaseModel):
 
     @validator("writers_names", always=True)
     def get_writers_names(cls, v, values):
-        return v if v else get_value_by_key("full_name", values["writers"])
+        return v or get_value_by_key("full_name", values["writers"])
 
     @validator("actors_names", always=True)
     def get_actors_names(cls, v, values):
-        return v if v else get_value_by_key("full_name", values["actors"])
+        return v or get_value_by_key("full_name", values["actors"])
 
     @validator("directors_names", always=True)
     def get_directors_names(cls, v, values):
-        return v if v else get_value_by_key("full_name", values["directors"])
+        return v or get_value_by_key("full_name", values["directors"])
 
     @validator("genres_names", always=True)
     def get_genres_names(cls, v, values):
-        return v if v else get_value_by_key("name", values["genres"])
+        return v or get_value_by_key("name", values["genres"])

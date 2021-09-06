@@ -49,8 +49,8 @@ class ESLoader:
         data = ""
         for film_work in film_works:
             data += (
-                    json.dumps({"index": {"_index": self.index_name, "_id": film_work.id}})
-                    + "\n"
+                json.dumps({"index": {"_index": self.index_name, "_id": film_work.id}})
+                + "\n"
             )
             data += film_work.json(ensure_ascii=False, exclude={"update_time"}) + "\n"
         return data
@@ -62,7 +62,7 @@ class ESLoader:
 
 class ETL:
     def __init__(
-            self, db, es_loader, redis_client, postgres_limit=100, es_chunk_size=100
+        self, db, es_loader, redis_client, postgres_limit=100, es_chunk_size=100
     ):
         self.es_loader = es_loader
         self.db = db

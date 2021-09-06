@@ -30,7 +30,7 @@ def backoff(exp, start_sleep_time=2, factor=2, border_sleep_time=10):
                     time.sleep(delay)
                     delay = next(exp_gen)
                     logger.error(
-                        f"Не удалось выполнить подключение, повтор через {delay}s"
+                        f"Не удалось выполнить подключение, повтор через %ss", delay
                     )
 
         return inner
@@ -56,8 +56,5 @@ def get_value_by_key(key, data):
 
 
 def get_update_time(redis_client):
-    return (
-        datetime.fromisoformat(redis_client.get("update_time").decode("utf-8"))
-        if redis_client.get("update_time")
-        else datetime.min
-    )
+    update_time = redis_client.get("update_time")
+    return datetime.fromisoformat(update_time.decode("utf-8")) if update_time else datetime.min
